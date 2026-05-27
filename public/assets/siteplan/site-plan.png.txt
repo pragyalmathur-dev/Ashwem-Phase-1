@@ -1,0 +1,1 @@
+# Place site-plan.png in this folder to overlay on top of map or calibrate GPS coordinate.

@@ -1,0 +1,1 @@
+# Place floorplan-ermida.png in this folder to show the layout plan of La Ermida.

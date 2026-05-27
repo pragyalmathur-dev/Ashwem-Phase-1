@@ -1,0 +1,6 @@
+{
+  "name": "Ashwem Phase 1 · Vianaar",
+  "description": "Interactive architectural showcase, GPS site plan calibrator, and luxury catalog for Ashwem Phase 1 by Vianaar in North Goa.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
