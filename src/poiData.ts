@@ -20,6 +20,13 @@ export const POINTS_OF_INTEREST: PointOfInterest[] = [
     description: ""
   },
   {
+    id: "mandrem-beach",
+    name: "Mandrem Beach",
+    category: "tourist",
+    coordinates: [15.658731, 73.713360],
+    description: ""
+  },
+  {
     id: "thalasa-resort",
     name: "Thalasa Beach Resort",
     category: "hotel",
