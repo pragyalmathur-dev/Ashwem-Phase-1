@@ -188,7 +188,7 @@ export default function App() {
   // ── STATE MANAGEMENT ─────────────────────────────────
   const [tunerConfig, setTunerConfig] = useState<TunerConfig>(() => {
     try {
-      const saved = localStorage.getItem('vianaar_calibration_params');
+      const saved = localStorage.getItem('vianaar_calibration_params_v2');
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.error("Failed to parse saved calibration", e);
@@ -201,15 +201,10 @@ export default function App() {
     return saved || ASSETS.sitePlan;
   });
 
-  const [selectedVillaId, setSelectedVillaId] = useState<string>("la-ermida");
+  const [selectedVillaId, setSelectedVillaId] = useState<string | null>(null);
   const [activeBrochureTab, setActiveBrochureTab] = useState<"overview" | "render" | "floorplan" | "specs">("overview");
-  const [isTunerOpen, setIsTunerOpen] = useState<boolean>(true);
   const [isMapReady, setIsMapReady] = useState<boolean>(false);
-  const [primaryTab, setPrimaryTab] = useState<"brochure" | "project-info" | "tuner">("brochure");
   const [showOverlay, setShowOverlay] = useState<boolean>(true);
-  const [nudgeStep, setNudgeStep] = useState<number>(0.000045); // ~5m default
-  const [copySuccess, setCopySuccess] = useState<boolean>(false);
-  const [imageLoadedSuccess, setImageLoadedSuccess] = useState<boolean>(!!localStorage.getItem('ashwem_siteplan_v1'));
   
   // Immersive modal view for Floor Plans / Renders
   const [modalMedia, setModalMedia] = useState<{ url: string; title: string; sub: string } | null>(null);
@@ -226,12 +221,13 @@ export default function App() {
   const overlayElRef = useRef<HTMLDivElement | null>(null);
   const overlayImgRef = useRef<HTMLImageElement | null>(null);
   const markersGroupRef = useRef<L.LayerGroup | null>(null);
+  const roadGroupRef = useRef<L.LayerGroup | null>(null);
 
   const selectedVilla = VILLAS.find(v => v.id === selectedVillaId) || VILLAS[0];
 
   // ── SAVE TUNER CONFIG TO LOCALSTORAGE ───────────────
   useEffect(() => {
-    localStorage.setItem('vianaar_calibration_params', JSON.stringify(tunerConfig));
+    localStorage.setItem('vianaar_calibration_params_v2', JSON.stringify(tunerConfig));
   }, [tunerConfig]);
 
   // ── RECALCULATE OVERLAY POSITION ─────────────────────
@@ -276,7 +272,7 @@ export default function App() {
       center: [DEVELOPMENT_SPECS.pinCoordinates[0], DEVELOPMENT_SPECS.pinCoordinates[1]],
       zoom: 18,
       zoomControl: false, // Customized controls placed on bottom/right
-      maxZoom: 22,
+      maxZoom: 18,
       attributionControl: false,
     });
 
@@ -286,8 +282,8 @@ export default function App() {
     const satelliteLayer = L.tileLayer(
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       {
-        maxZoom: 22,
-        maxNativeZoom: 19,
+        maxZoom: 18,
+        maxNativeZoom: 18,
         errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
       }
     ).addTo(map);
@@ -296,8 +292,8 @@ export default function App() {
     const labelsLayer = L.tileLayer(
       'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
       {
-        maxZoom: 22,
-        maxNativeZoom: 19,
+        maxZoom: 18,
+        maxNativeZoom: 18,
         opacity: 0.8,
         errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
       }
@@ -368,109 +364,67 @@ export default function App() {
     const group = markersGroupRef.current;
     if (!map || !group || !isMapReady) return;
 
+    // Clear all layers to keep the site plan overlay completely clean as requested
     group.clearLayers();
-
-    // 1. Primary Site GPS Pin
-    const mainHtml = `
-      <div class="relative flex items-center justify-center">
-        <span class="animate-ping absolute inline-flex h-8 w-8 rounded-full bg-brand-amber opacity-40"></span>
-        <div class="h-6 w-6 rounded-full border border-brand-white-warm bg-brand-amber text-brand-white-warm shadow-md flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        </div>
-      </div>
-    `;
-    const mainMarker = L.marker(DEVELOPMENT_SPECS.pinCoordinates, {
-      icon: L.divIcon({
-        className: 'custom-main-pin',
-        html: mainHtml,
-        iconSize: [24, 24],
-        iconAnchor: [12, 12],
-      })
-    }).addTo(group);
-    
-    mainMarker.bindPopup(`
-      <div class="p-3 font-sans bg-brand-white-warm max-w-xs text-brand-charcoal text-xs">
-        <p class="font-serif font-bold text-sm text-brand-green-dark mb-0.5">Ashwem Phase 1</p>
-        <span class="text-[10px] uppercase tracking-wider text-brand-amber font-semibold">Project Hub Pin</span>
-        <p class="mt-1 text-gray-600 font-light">Coordinates calibrated accurately on current beach-road layout block.</p>
-        <div class="flex items-center gap-1.5 mt-2 bg-brand-sage-pale/40 p-1.5 rounded text-[10px] text-brand-green-dark">
-          <MapPin size="11" />
-          <span>GPS: 15.643523, 73.723048</span>
-        </div>
-      </div>
-    `);
-
-    // 2. Individual Villa Spots for immersive interactive selection
-    VILLAS.forEach(villa => {
-      const isActive = villa.id === selectedVillaId;
-      const markerHtml = `
-        <div class="relative flex items-center justify-center group">
-          <span class="animate-ping absolute inline-flex h-10 w-10 rounded-full ${isActive ? 'bg-brand-amber opacity-35' : 'bg-brand-green opacity-20' }"></span>
-          <div class="h-9 w-9 rounded-full border-2 ${
-            isActive 
-              ? 'border-brand-amber bg-brand-charcoal text-brand-amber' 
-              : 'border-brand-white-warm bg-brand-green-dark text-brand-sage-pale hover:bg-brand-green'
-          } shadow-lg flex flex-col items-center justify-center transition-all duration-300 transform scale-100 group-hover:scale-110">
-            <span class="text-[9px] font-bold tracking-tighter leading-none">${villa.name.slice(3, 5).toUpperCase()}</span>
-          </div>
-          <!-- Pointer element -->
-          <div class="absolute -bottom-1 h-1.5 w-1.5 bg-current transform rotate-45 ${
-            isActive ? 'text-brand-charcoal border-r border-b border-brand-amber' : 'text-brand-green-dark border-r border-b border-brand-white-warm'
-          }"></div>
-        </div>
-      `;
-
-      const villaMarker = L.marker(villa.coordinates, {
-        icon: L.divIcon({
-          className: 'custom-villa-pin',
-          html: markerHtml,
-          iconSize: [36, 36],
-          iconAnchor: [18, 18],
-        })
-      }).addTo(group);
-
-      villaMarker.on('click', () => {
-        setSelectedVillaId(villa.id);
-        setPrimaryTab("brochure");
-      });
-    });
-
   }, [selectedVillaId, isMapReady]);
 
+  // ── DRAW ACCESS ROAD & LEL ─────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !isMapReady) return;
+
+    // Create a LayerGroup specifically for the Access Road
+    const roadGroup = L.layerGroup().addTo(map);
+    roadGroupRef.current = roadGroup;
+
+    // Define coordinates given by the user
+    const roadPoints: [number, number][] = [
+      [15.643383, 73.722969],
+      [15.643144, 73.722954],
+      [15.642987, 73.722686],
+      [15.642932, 73.722548],
+      [15.642939, 73.720976],
+      [15.642997, 73.720797],
+      [15.643013, 73.720728],
+      [15.643044, 73.720452]
+    ];
+
+    // Create the white dotted/dashed road polyline (road of white colour, dotted line)
+    L.polyline(roadPoints, {
+      color: '#FFFFFF',
+      weight: 4,
+      dashArray: '8, 8',
+      lineCap: 'round',
+      lineJoin: 'round',
+      opacity: 0.95
+    }).addTo(roadGroup);
+
+    // Create custom styled Access Road label marker matching the attached picture
+    const labelIcon = L.divIcon({
+      html: `
+        <div class="select-none text-center shadow-md whitespace-nowrap" style="background-color: #0b3d27; color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: bold; padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 4px 8px rgba(0,0,0,0.15); display: inline-block;">
+          Access Road
+        </div>
+      `,
+      className: 'custom-road-label-icon',
+      iconSize: [80, 24],
+      iconAnchor: [40, 12]
+    });
+
+    L.marker([15.642923, 73.722380], {
+      icon: labelIcon,
+      interactive: false
+    }).addTo(roadGroup);
+
+    return () => {
+      if (roadGroupRef.current) {
+        roadGroupRef.current.remove();
+        roadGroupRef.current = null;
+      }
+    };
+  }, [isMapReady]);
+
   // ── USER MANIPULATIONS / PANEL CALIBRATIONS ─────────
-  const handleNudge = (direction: 'up' | 'down' | 'left' | 'right') => {
-    let lat = tunerConfig.lat;
-    let lng = tunerConfig.lng;
-    const factor = nudgeStep / Math.cos(lat * Math.PI / 180);
-
-    switch (direction) {
-      case 'up': lat += nudgeStep; break;
-      case 'down': lat -= nudgeStep; break;
-      case 'left': lng -= factor; break;
-      case 'right': lng += factor; break;
-    }
-
-    setTunerConfig(prev => ({
-      ...prev,
-      lat: Number(lat.toFixed(7)),
-      lng: Number(lng.toFixed(7))
-    }));
-  };
-
-  const handleCopyConfig = () => {
-    const formatted = JSON.stringify(tunerConfig, null, 2);
-    navigator.clipboard.writeText(formatted)
-      .then(() => {
-        setCopySuccess(true);
-        setTimeout(() => setCopySuccess(false), 2000);
-      })
-      .catch((err) => {
-        console.error("Clipboard copy failed, using alert path", err);
-      });
-  };
-
   const handleCenterMap = () => {
     if (mapRef.current) {
       mapRef.current.setView([tunerConfig.lat, tunerConfig.lng], 18);
@@ -484,32 +438,10 @@ export default function App() {
   };
 
   // Center on designated location target
-  const zoomToCoordinate = (coords: [number, number], zoomLevel = 19) => {
+  const zoomToCoordinate = (coords: [number, number], zoomLevel = 18) => {
     if (mapRef.current) {
       mapRef.current.setView(coords, zoomLevel);
     }
-  };
-
-  // Handle custom site plan file upload (stored securely in browser localStorage)
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      if (dataUrl) {
-        try {
-          localStorage.setItem('ashwem_siteplan_v1', dataUrl);
-          setSitePlanImage(dataUrl);
-          setImageLoadedSuccess(true);
-        } catch (err) {
-          console.warn('localStorage storage exceeded size limit, applying image in runtime state only', err);
-          setSitePlanImage(dataUrl);
-        }
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
   return (
@@ -556,18 +488,17 @@ export default function App() {
           <div>
             <div className="flex justify-between items-baseline mb-3">
               <span className="text-[10px] font-sans font-bold tracking-[1.5px] uppercase text-[#717368]">SELECT BLOCK</span>
-              <span className="text-[10px] italic text-[#717368]/70">2 Styles Available</span>
             </div>
             
             <div className="space-y-3">
               {VILLAS.map((villa) => {
                 const isActive = selectedVillaId === villa.id;
-                const unitCount = villa.id === 'la-ermida' ? 17 : 12;
+                const unitCount = villa.id === 'la-ermida' ? 17 : 20;
                 return (
                   <div key={villa.id} className="space-y-3">
                     <button
                       onClick={() => {
-                        setSelectedVillaId(villa.id);
+                        setSelectedVillaId(isActive ? null : villa.id);
                       }}
                       className={`w-full p-5 rounded-2xl border transition-all flex items-center justify-between text-left cursor-pointer ${
                         isActive 
@@ -635,19 +566,6 @@ export default function App() {
               <button
                 onClick={() => {
                   setModalMedia({
-                    url: ASSETS.sitePlan,
-                    title: "Ashwem Phase 1 - Site Plan Layout",
-                    sub: "Master Architectural Geometries"
-                  });
-                }}
-                className="py-3 px-4 bg-white hover:bg-brand-green-dark hover:text-white text-brand-green-dark text-[11px] font-sans font-bold tracking-wider uppercase rounded-xl border border-brand-sand/65 shadow-sm transition duration-155 cursor-pointer text-center"
-              >
-                Site View
-              </button>
-              
-              <button
-                onClick={() => {
-                  setModalMedia({
                     url: ASSETS.renderErmida,
                     title: "La Ermida Main Render",
                     sub: "Classical Chapel-Inspired Pavilion visualization"
@@ -670,29 +588,10 @@ export default function App() {
               >
                 La Ribera
               </button>
-              
-              <button
-                onClick={() => {
-                  zoomToCoordinate(DEVELOPMENT_SPECS.pinCoordinates, 19);
-                }}
-                className="py-3 px-4 bg-white hover:bg-[#234D3B] hover:text-white text-[#5B6C58] text-[11px] font-sans font-bold tracking-wider uppercase rounded-xl border border-brand-sand/30 bg-[#FAF8F2]/40 transition duration-155 cursor-pointer text-center flex items-center justify-center gap-1"
-              >
-                <Compass size="13" />
-                Center GPS
-              </button>
 
             </div>
           </div>
 
-        </div>
-
-        {/* Footer info brand bar */}
-        <div className="p-4 bg-[#FAF8F2] border-t border-brand-sand/30 flex items-center justify-between text-[11px] text-[#717368] font-sans select-none animate-fadeIn">
-          <span>Acreage Profile Mode</span>
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-brand-green inline-block animate-pulse"></span>
-            <span className="font-semibold text-brand-green-dark uppercase text-[10px] tracking-wider">Active Live</span>
-          </div>
         </div>
 
       </aside>
@@ -710,7 +609,7 @@ export default function App() {
             <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-sage-pale"></span>
           </span>
           <span className="text-[10px] font-sans font-bold tracking-[3.5px] uppercase whitespace-nowrap text-brand-white-warm">
-            {DEVELOPMENT_SPECS.title} &nbsp;·&nbsp; Live GPS Calibrator
+            {DEVELOPMENT_SPECS.title} &nbsp;·&nbsp; Interactive Site Plan
           </span>
         </div>
 
@@ -727,19 +626,6 @@ export default function App() {
         {/* Map custom control overlay box (Standard floating tiles) on Middle-Right */}
         <div className="absolute bottom-6 right-5 z-30 flex flex-col gap-2.5 pointer-events-auto bg-transparent">
           
-          {/* Toggle calibration sliders board overlay */}
-          <button 
-            onClick={() => setIsTunerOpen(prev => !prev)}
-            className={`p-3 rounded-xl shadow-lg border transition flex items-center justify-center cursor-pointer ${
-              isTunerOpen 
-                ? 'bg-brand-amber border-brand-amber text-[#1A1C18]' 
-                : 'bg-brand-white-warm border-brand-sand text-gray-500 hover:text-[#234D3B]'
-            }`}
-            title="Toggle Overlay Calibration Tuner Board"
-          >
-            <Sliders size="18" />
-          </button>
-
           {/* Main location reset map bounds button */}
           <button 
             onClick={() => zoomToCoordinate(DEVELOPMENT_SPECS.pinCoordinates, 18)}
@@ -784,276 +670,7 @@ export default function App() {
 
       </main>
 
-      {/* ── SLIDING GEOPOS CALIBRATION TUNER (ON THE RIGHT OF THE SCREEN) ── */}
-      {isTunerOpen && (
-        <aside className="w-[340px] h-full bg-[#1A1C18] border-l border-white/10 flex flex-col z-[45] animate-slideInRight text-brand-white-warm max-w-sm pointer-events-auto shadow-2xl overflow-y-auto">
-          <div className="p-5 border-b border-white/15 flex items-center justify-between bg-[#232721] shrink-0">
-            <div className="flex items-center gap-2">
-              <Sliders size="16" className="text-brand-amber" />
-              <span className="text-xs uppercase font-sans tracking-widest font-extrabold text-[#F5EFE6]">
-                Overlay Tuner Board
-              </span>
-            </div>
-            <button 
-              onClick={() => setIsTunerOpen(false)}
-              className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition cursor-pointer"
-              title="Hide Tuner Board"
-            >
-              <X size="18" />
-            </button>
-          </div>
-          
-          <div className="p-5 flex-1 space-y-6 overflow-y-auto custom-scrollbar">
-            
-            {/* Feedback / status banner */}
-            {imageLoadedSuccess ? (
-              <div className="bg-[#24352D] text-[#A2E3C4] p-3.5 rounded-xl border border-[#2B4B3D]/50 text-xs flex gap-2.5 items-start">
-                <CheckCircle className="mt-0.5 text-[#3CD08E] flex-shrink-0" size="16" />
-                <div>
-                  <span className="font-bold block text-white">Bespoke Site Plan Loaded</span>
-                  <span className="font-light text-[10px] leading-relaxed block mt-0.5 text-[#A2E3C4]/80">
-                    Stored in map session memory. Drawing is dynamically aligned to Goan GPS.
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-[#2C2A24] border border-[#484234]/60 p-3.5 rounded-xl text-xs text-[#E9C46A] flex gap-2.5 items-start">
-                <Info className="mt-0.5 text-[#E9C46A] flex-shrink-0 animate-pulse" size="16" />
-                <div>
-                  <span className="font-bold block text-white font-sans text-[11px] uppercase tracking-wider">Calibration Active</span>
-                  <span className="font-light text-[10px] leading-relaxed block mt-0.5 text-gray-300">
-                    Using master vector layout overlay. Feel free to load a custom render drawing below.
-                  </span>
-                </div>
-              </div>
-            )}
 
-            {/* Custom Blueprint File upload */}
-            <div className="space-y-2">
-              <span className="block text-[10px] uppercase tracking-widest text-[#B9816B] font-bold">Replace Default Map drawing</span>
-              <label className="flex flex-col items-center justify-center p-4 border border-dashed border-white/10 hover:border-brand-green bg-white/[0.02] hover:bg-white/[0.04] rounded-xl cursor-pointer transition group text-center">
-                <Upload size="20" className="text-brand-sage-pale group-hover:scale-110 transition duration-300" />
-                <span className="mt-2 text-xs font-bold text-white block">Upload site plan drawing</span>
-                <span className="text-[9px] text-gray-400 font-light mt-1">Accepts transparent PNG or high contrast JPG layouts</span>
-                <input 
-                  type="file" 
-                  onChange={handleImageUpload} 
-                  accept="image/*" 
-                  className="hidden" 
-                />
-              </label>
-            </div>
-
-            {/* Lat/Lng controls */}
-            <div className="space-y-3 pt-4 border-t border-white/5">
-              <span className="block text-[10px] uppercase tracking-widest text-[#B9816B] font-bold">Primary Coordinates</span>
-              
-              <div className="grid grid-cols-2 gap-2.5 text-xs text-gray-300">
-                <div>
-                  <label className="block text-[9px] uppercase text-gray-400 font-bold mb-1">Latitude</label>
-                  <input 
-                    type="number"
-                    step="0.000001"
-                    value={tunerConfig.lat}
-                    onChange={(e) => setTunerConfig(prev => ({ ...prev, lat: Number(e.target.value) }))}
-                    className="w-full bg-[#2A2B28] border border-white/10 rounded px-3 py-2 focus:outline-none focus:border-brand-green font-mono text-xs text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[9px] uppercase text-gray-400 font-bold mb-1">Longitude</label>
-                  <input 
-                    type="number"
-                    step="0.000001"
-                    value={tunerConfig.lng}
-                    onChange={(e) => setTunerConfig(prev => ({ ...prev, lng: Number(e.target.value) }))}
-                    className="w-full bg-[#2A2B28] border border-white/10 rounded px-3 py-2 focus:outline-none focus:border-brand-green font-mono text-xs text-white"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Tactical micro adjustments (Nudge Pad) */}
-            <div className="space-y-2.5">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] uppercase tracking-widest text-[#B9816B] font-bold">Micro Positioning</span>
-                
-                {/* Step Selector Tab */}
-                <div className="flex gap-1 bg-[#232721] p-0.5 rounded text-[9px] font-semibold text-gray-400 border border-white/5">
-                  <button 
-                    onClick={() => setNudgeStep(0.000009)}
-                    className={`px-1.5 py-0.5 rounded ${nudgeStep === 0.000009 ? 'bg-[#3E473B] text-white font-extrabold' : 'hover:bg-white/5'}`}
-                    title="~1 meter alignment"
-                  >
-                    ~1m
-                  </button>
-                  <button 
-                    onClick={() => setNudgeStep(0.000045)}
-                    className={`px-1.5 py-0.5 rounded ${nudgeStep === 0.000045 ? 'bg-[#3E473B] text-white font-extrabold' : 'hover:bg-white/5'}`}
-                    title="~5 meters alignment"
-                  >
-                    ~5m
-                  </button>
-                  <button 
-                    onClick={() => setNudgeStep(0.00009)}
-                    className={`px-1.5 py-0.5 rounded ${nudgeStep === 0.00009 ? 'bg-[#3E473B] text-white font-extrabold' : 'hover:bg-white/5'}`}
-                    title="~10 meters alignment"
-                  >
-                    ~10m
-                  </button>
-                </div>
-              </div>
-
-              {/* Arrow grid centering controller */}
-              <div className="flex justify-center py-1">
-                <div className="grid grid-cols-3 gap-1.5 w-max">
-                  <div />
-                  <button 
-                    onClick={() => handleNudge('up')}
-                    className="h-9 w-9 bg-[#232721] hover:bg-[#3E473B] hover:text-white text-brand-sage-pale border border-white/10 rounded-lg active:bg-brand-green flex items-center justify-center font-bold text-lg select-none cursor-pointer"
-                    title="Nudge North (Up)"
-                  >
-                    ↑
-                  </button>
-                  <div />
-
-                  <button 
-                    onClick={() => handleNudge('left')}
-                    className="h-9 w-9 bg-[#232721] hover:bg-[#3E473B] hover:text-white text-brand-sage-pale border border-white/10 rounded-lg active:bg-brand-green flex items-center justify-center font-bold text-lg select-none cursor-pointer"
-                    title="Nudge West (Left)"
-                  >
-                    ←
-                  </button>
-                  <button 
-                    onClick={handleCenterMap}
-                    className="h-9 w-9 bg-brand-green-dark text-brand-white-warm hover:bg-brand-green rounded-lg flex items-center justify-center transition shadow-sm border border-brand-green/30 cursor-pointer"
-                    title="Center Map Camera"
-                  >
-                    <Compass size="14" className="animate-pulse" />
-                  </button>
-                  <button 
-                    onClick={() => handleNudge('right')}
-                    className="h-9 w-9 bg-[#232721] hover:bg-[#3E473B] hover:text-[#3CD08E] text-brand-sage-pale border border-white/10 rounded-lg active:bg-brand-green flex items-center justify-center font-bold text-lg select-none cursor-pointer"
-                    title="Nudge East (Right)"
-                  >
-                    →
-                  </button>
-
-                  <div />
-                  <button 
-                    onClick={() => handleNudge('down')}
-                    className="h-9 w-9 bg-[#232721] hover:bg-[#3E473B] hover:text-[#3CD08E] text-brand-sage-pale border border-white/10 rounded-lg active:bg-brand-green flex items-center justify-center font-bold text-lg select-none cursor-pointer"
-                    title="Nudge South (Down)"
-                  >
-                    ↓
-                  </button>
-                  <div />
-                </div>
-              </div>
-            </div>
-
-            {/* Width / Height / Rotation / Opacity Controls */}
-            <div className="space-y-3.5 pt-4 border-t border-white/5 text-xs text-gray-300">
-              
-              <div className="space-y-1">
-                <div className="flex justify-between font-bold text-brand-sage-pale">
-                  <span>Width Boundary</span>
-                  <span className="font-mono text-xs text-white">{tunerConfig.widthM}m</span>
-                </div>
-                <input 
-                  type="range"
-                  min="50"
-                  max="1200"
-                  step="1"
-                  value={tunerConfig.widthM}
-                  onChange={(e) => setTunerConfig(prev => ({ ...prev, widthM: Number(e.target.value) }))}
-                  className="w-full accent-brand-green cursor-pointer h-1.5 bg-[#232721] rounded-lg appearance-none border border-white/5"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex justify-between font-bold text-brand-sage-pale">
-                  <span>Height Boundary</span>
-                  <span className="font-mono text-xs text-white">{tunerConfig.heightM}m</span>
-                </div>
-                <input 
-                  type="range"
-                  min="50"
-                  max="700"
-                  step="1"
-                  value={tunerConfig.heightM}
-                  onChange={(e) => setTunerConfig(prev => ({ ...prev, heightM: Number(e.target.value) }))}
-                  className="w-full accent-brand-green cursor-pointer h-1.5 bg-[#232721] rounded-lg appearance-none border border-white/5"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex justify-between font-bold text-[#E9C46A]">
-                  <span>Rotation Degree</span>
-                  <span className="font-mono text-xs text-[#E9C46A]">{tunerConfig.rotation}°</span>
-                </div>
-                <input 
-                  type="range"
-                  min="-180"
-                  max="180"
-                  step="0.5"
-                  value={tunerConfig.rotation}
-                  onChange={(e) => setTunerConfig(prev => ({ ...prev, rotation: Number(e.target.value) }))}
-                  className="w-full accent-brand-[#E9C46A] cursor-pointer h-1.5 bg-[#232721] rounded-lg appearance-none border border-white/5"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex justify-between font-bold text-brand-sage-pale">
-                  <span>Transparency/Opacity</span>
-                  <span className="font-mono text-xs text-white">{Math.round(tunerConfig.opacity * 100)}%</span>
-                </div>
-                <input 
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={tunerConfig.opacity}
-                  onChange={(e) => setTunerConfig(prev => ({ ...prev, opacity: Number(e.target.value) }))}
-                  className="w-full accent-brand-green cursor-pointer h-1.5 bg-[#232721] rounded-lg appearance-none border border-white/5"
-                />
-              </div>
-
-            </div>
-
-            {/* Reset/Copy deck actions */}
-            <div className="pt-4 border-t border-white/5 space-y-2.5">
-              
-              {/* Real-time formatted display copy check */}
-              <div className="bg-[#141512] border border-white/5 p-3.5 rounded-xl text-[10px] text-[#D9E8C0] font-mono leading-relaxed">
-                <p>LATLNG: <span className="text-white">{tunerConfig.lat}</span>, <span className="text-white">{tunerConfig.lng}</span></p>
-                <p>SIZE: <span className="text-white">{tunerConfig.widthM}m × {tunerConfig.heightM}m</span></p>
-                <p>ROTN: <span className="text-brand-amber">{tunerConfig.rotation}°</span> &nbsp;·&nbsp; OPAC: <span className="text-white">{tunerConfig.opacity}</span></p>
-              </div>
-
-              <div className="flex gap-2.5">
-                <button 
-                  onClick={handleCopyConfig}
-                  className="flex-1 py-3 px-3 bg-[#42523F] hover:bg-brand-green text-white text-xs font-bold tracking-wider uppercase rounded-xl transition flex items-center justify-center gap-1.5 shadow cursor-pointer"
-                >
-                  <Copy size="12" />
-                  {copySuccess ? 'Copied ✓' : 'Copy Config'}
-                </button>
-                <button 
-                  onClick={() => {
-                    setTunerConfig(DEFAULT_TUNER_CONFIG);
-                  }}
-                  className="py-3 px-4 bg-[#232721] hover:bg-[#3E473B] border border-white/10 rounded-xl transition text-xs font-bold cursor-pointer"
-                  title="Restore core geoconfig standard values"
-                >
-                  Reset
-                </button>
-              </div>
-
-            </div>
-
-          </div>
-        </aside>
-      )}
 
       {/* ── IMMERSIVE FULLSCREEN LIGHTBOX MODAL (RENDER / FLOOR PLAN INSPECTION) ── */}
       {modalMedia && (
@@ -1068,7 +685,6 @@ export default function App() {
             {/* Modal Header */}
             <div className="flex items-start justify-between mb-4 pb-3 border-b border-brand-sand">
               <div>
-                <span className="text-[10px] font-sans font-bold tracking-[2.5px] text-brand-amber uppercase block">{modalMedia.sub}</span>
                 <span className="text-2xl font-serif font-bold tracking-tight text-brand-green-dark block mt-0.5">{modalMedia.title}</span>
               </div>
               <button 
@@ -1102,16 +718,6 @@ export default function App() {
               />
             </div>
 
-            {/* Modal Footer specs notes */}
-            <div className="mt-4 flex flex-col md:flex-row md:items-center md:justify-between text-xs text-gray-500 font-sans gap-2">
-              <span className="italic">*Calibrated blueprints are subject to revision pending site layout conditions.</span>
-              <button 
-                onClick={() => setModalMedia(null)}
-                className="self-end py-1.5 px-6 border-2 border-brand-green-dark hover:bg-brand-green-dark hover:text-brand-white-warm text-brand-green-dark text-xs font-semibold uppercase rounded-md transition duration-300"
-              >
-                Close View
-              </button>
-            </div>
             
           </div>
         </div>

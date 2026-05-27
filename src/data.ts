@@ -24,22 +24,22 @@ export const ASSETS = {
 };
 
 export const DEFAULT_TUNER_CONFIG: TunerConfig = {
-  lat: 15.643523,
-  lng: 73.723048,
-  widthM: 220,
-  heightM: 120,
-  rotation: -2.5,
-  opacity: 0.85,
+  lat: 15.643613,
+  lng: 73.723982,
+  widthM: 232,
+  heightM: 123,
+  rotation: -5.5,
+  opacity: 0.9,
 };
 
 export const DEVELOPMENT_SPECS = {
   title: "Ashwem Phase 1",
   developer: "Vianaar",
   location: "Ashwem, North Goa",
-  pinCoordinates: [15.643523, 73.723048] as [number, number],
+  pinCoordinates: [15.643613, 73.723982] as [number, number],
   distanceToBeach: "800 meters (5 mins stroll)",
   totalLandArea: "1.8 Acres",
-  totalUnits: "12 Exclusive Boutique Villas",
+  totalUnits: "37 Exclusive Boutique Villas",
   completionDate: "December 2027",
   overview: "Ashwem Phase 1 represents our signature Goan architectural philosophy: a refined blend of premium modern minimalist geometries with earth-honest Portuguese-Goan craft textures. Using local terracotta columns, hand-chiseled basalt, double-gabled clay-tile heights, and sweeping views of lush palm groves, we create an immersive ecological santurary to restore your senses.",
   localHighlights: [
