@@ -211,7 +211,7 @@ export default function App() {
   const [showOverlay, setShowOverlay] = useState<boolean>(true);
   
   // Immersive modal view for Floor Plans / Renders
-  const [modalMedia, setModalMedia] = useState<{ url: string; title: string; sub: string } | null>(null);
+  const [modalMedia, setModalMedia] = useState<{ url: string; title: string; sub: string; fallback?: string } | null>(null);
 
   // Interactive Floor Plan Unit Popup States
   const [interactiveFloorPlanOpen, setInteractiveFloorPlanOpen] = useState<boolean>(false);
@@ -734,37 +734,108 @@ export default function App() {
 
           <hr className="border-t border-brand-sand/35" />
 
-          {/* RENDERS COMPASS GRID */}
-          <div>
-            <span className="block text-[10px] font-sans font-bold tracking-[1.5px] uppercase text-[#717368] mb-3">RENDERS</span>
-            <div className="grid grid-cols-2 gap-2.5">
-              
-              <button
-                onClick={() => {
-                  setModalMedia({
-                    url: ASSETS.renderErmida,
-                    title: "La Ermida Main Render",
-                    sub: "Classical Chapel-Inspired Pavilion visualization"
-                  });
-                }}
-                className="py-3 px-4 bg-white hover:bg-brand-green-dark hover:text-white text-brand-green-dark text-[11px] font-sans font-light tracking-wider uppercase rounded-xl border border-brand-sand/65 shadow-sm transition duration-155 cursor-pointer text-center"
-              >
-                La Ermida
-              </button>
-              
-              <button
-                onClick={() => {
-                  setModalMedia({
-                    url: ASSETS.renderRibera,
-                    title: "La Ribera Main Render",
-                    sub: "Sustainable Riverfront Oasis visualization"
-                  });
-                }}
-                className="py-3 px-4 bg-white hover:bg-brand-green-dark hover:text-white text-brand-green-dark text-[11px] font-sans font-light tracking-wider uppercase rounded-xl border border-brand-sand/65 shadow-sm transition duration-155 cursor-pointer text-center"
-              >
-                La Ribera
-              </button>
+          {/* RENDERS COMPASS SECTION */}
+          <div className="space-y-4">
+            <span className="block text-[10px] font-sans font-bold tracking-[1.5px] uppercase text-[#717368] mb-1">EXPLORE RENDERS</span>
+            
+            {/* LA ERMIDA RENDERS */}
+            <div className="rounded-xl border border-brand-sand/30 bg-brand-white-warm/25 p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between border-b border-brand-sand/15 pb-1.5">
+                <span className="block text-[12px] font-serif italic text-brand-green-dark">La Ermida</span>
+                <span className="text-[8.5px] font-mono uppercase tracking-wider text-[#717368] opacity-75">Chapel Pavilion</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    setModalMedia({
+                      url: ASSETS.renderLEFront,
+                      fallback: ASSETS.fallbackLEFront,
+                      title: "La Ermida — Front",
+                      sub: "Portuguese-inspired front elevation render"
+                    });
+                  }}
+                  className="py-2.5 px-2 bg-white hover:bg-[#5B6C58] hover:text-brand-white-warm text-[#5B6C58] text-[10px] font-sans font-light tracking-wide uppercase rounded-xl border border-brand-sand/40 shadow-xs transition duration-155 cursor-pointer text-center flex flex-col items-center justify-center gap-0.5"
+                >
+                  <span className="font-serif italic font-normal text-[9.5px] opacity-75 lowercase">elevation</span>
+                  <span className="font-medium">Front View</span>
+                </button>
 
+                <button
+                  onClick={() => {
+                    setModalMedia({
+                      url: ASSETS.renderLEPool,
+                      fallback: ASSETS.fallbackLEPool,
+                      title: "La Ermida — Pool",
+                      sub: "Scenic panoramic layout framing the natural swimming pool"
+                    });
+                  }}
+                  className="py-2.5 px-2 bg-white hover:bg-[#5B6C58] hover:text-brand-white-warm text-[#5B6C58] text-[10px] font-sans font-light tracking-wide uppercase rounded-xl border border-brand-sand/40 shadow-xs transition duration-155 cursor-pointer text-center flex flex-col items-center justify-center gap-0.5"
+                >
+                  <span className="font-serif italic font-normal text-[9.5px] opacity-75 lowercase">courtyard</span>
+                  <span className="font-medium">Pool View</span>
+                </button>
+              </div>
+            </div>
+
+            {/* LA RIBERA VILLA 1 TO 12 */}
+            <div className="rounded-xl border border-brand-sand/30 bg-brand-white-warm/25 p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between border-b border-brand-sand/15 pb-1.5">
+                <span className="block text-[12px] font-serif italic text-brand-green-dark">La Ribera — Villa 1 to 12</span>
+                <span className="text-[8.5px] font-mono uppercase tracking-wider text-[#717368] opacity-75">Riverfront Duplex</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    setModalMedia({
+                      url: ASSETS.renderLR1to12Front,
+                      fallback: ASSETS.fallbackLR1to12Front,
+                      title: "La Ribera — Villa 1 to 12 Front",
+                      sub: "Architectural front-elevation perspective of Villa units 1-12"
+                    });
+                  }}
+                  className="py-2.5 px-2 bg-white hover:bg-[#5B6C58] hover:text-brand-white-warm text-[#5B6C58] text-[10px] font-sans font-light tracking-wide uppercase rounded-xl border border-brand-sand/40 shadow-xs transition duration-155 cursor-pointer text-center flex flex-col items-center justify-center gap-0.5"
+                >
+                  <span className="font-serif italic font-normal text-[9.5px] opacity-75 lowercase">grand entrance</span>
+                  <span className="font-medium">Front View</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setModalMedia({
+                      url: ASSETS.renderLR1to12Back,
+                      fallback: ASSETS.fallbackLR1to12Back,
+                      title: "La Ribera — Villa 1 to 12 Back",
+                      sub: "Exquisite rear facade showcasing private gardens & water features"
+                    });
+                  }}
+                  className="py-2.5 px-2 bg-white hover:bg-[#5B6C58] hover:text-brand-white-warm text-[#5B6C58] text-[10px] font-sans font-light tracking-wide uppercase rounded-xl border border-brand-sand/40 shadow-xs transition duration-155 cursor-pointer text-center flex flex-col items-center justify-center gap-0.5"
+                >
+                  <span className="font-serif italic font-normal text-[9.5px] opacity-75 lowercase">private deck</span>
+                  <span className="font-medium">Back View</span>
+                </button>
+              </div>
+            </div>
+
+            {/* LA RIBERA VILLA 14 TO 20 */}
+            <div className="rounded-xl border border-brand-sand/30 bg-brand-white-warm/25 p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between border-b border-brand-sand/15 pb-1.5">
+                <span className="block text-[12px] font-serif italic text-brand-green-dark">La Ribera — Villa 14 to 20</span>
+                <span className="text-[8.5px] font-mono uppercase tracking-wider text-[#717368] opacity-75">Creek Sanctuary</span>
+              </div>
+              <button
+                onClick={() => {
+                  setModalMedia({
+                    url: ASSETS.renderLR14to20,
+                    fallback: ASSETS.fallbackLR14to20,
+                    title: "La Ribera — Villa 14 to 20",
+                    sub: "Premium sanctuary views situated along the peaceful curves of the river creek"
+                  });
+                }}
+                className="w-full py-2.5 px-3 bg-white hover:bg-[#5B6C58] hover:text-brand-white-warm text-[#5B6C58] text-[10px] font-sans font-light tracking-wider uppercase rounded-xl border border-brand-sand/40 shadow-xs transition duration-155 cursor-pointer text-center flex flex-col items-center justify-center gap-0.5"
+              >
+                <span className="font-serif italic font-normal text-[9.5px] opacity-75 lowercase">estuary panoramic view</span>
+                <span className="font-medium">Main Render</span>
+              </button>
             </div>
           </div>
 
@@ -906,11 +977,13 @@ export default function App() {
                 className="w-full h-full object-contain p-2 max-h-[60vh]"
                 onError={(e) => {
                   const target = e.currentTarget;
-                  let fallback = "";
-                  if (modalMedia.title.includes("Floor Plan")) {
-                    fallback = selectedVilla.id === 'la-ermida' ? ASSETS.fallbackFloorPlanErmida : ASSETS.fallbackFloorPlanRibera;
-                  } else {
-                    fallback = selectedVilla.id === 'la-ermida' ? ASSETS.fallbackRenderErmida : ASSETS.fallbackRenderRibera;
+                  let fallback = modalMedia.fallback || "";
+                  if (!fallback) {
+                    if (modalMedia.title.includes("Floor Plan")) {
+                      fallback = selectedVilla.id === 'la-ermida' ? ASSETS.fallbackFloorPlanErmida : ASSETS.fallbackFloorPlanRibera;
+                    } else {
+                      fallback = selectedVilla.id === 'la-ermida' ? ASSETS.fallbackRenderErmida : ASSETS.fallbackRenderRibera;
+                    }
                   }
                   if (fallback && target.src !== fallback) {
                     target.src = fallback;

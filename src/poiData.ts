@@ -27,6 +27,13 @@ export const POINTS_OF_INTEREST: PointOfInterest[] = [
     description: ""
   },
   {
+    id: "morjim-beach",
+    name: "Morjim Beach",
+    category: "tourist",
+    coordinates: [15.627505, 73.727447],
+    description: ""
+  },
+  {
     id: "thalasa-resort",
     name: "Thalasa Beach Resort",
     category: "hotel",
