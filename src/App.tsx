@@ -28,10 +28,12 @@ import {
   HelpCircle,
   X,
   Plus,
-  Minus
+  Minus,
+  Menu
 } from 'lucide-react';
 import { VILLAS, DEVELOPMENT_SPECS, DEFAULT_TUNER_CONFIG, ASSETS } from './data';
 import { TunerConfig, VillaData } from './types';
+import { POINTS_OF_INTEREST, CATEGORIES, PointOfInterest, CategoryMetadata } from './poiData';
 
 // Gorgeous fallback floor plan drawings rendered using pure vector SVGs
 function generateFallbackFloorPlanSVG(
@@ -202,6 +204,8 @@ export default function App() {
   });
 
   const [selectedVillaId, setSelectedVillaId] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<'all' | 'tourist' | 'restaurant' | 'hotel' | 'school' | 'airport' | 'other'>('all');
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [activeBrochureTab, setActiveBrochureTab] = useState<"overview" | "render" | "floorplan" | "specs">("overview");
   const [isMapReady, setIsMapReady] = useState<boolean>(false);
   const [showOverlay, setShowOverlay] = useState<boolean>(true);
@@ -358,27 +362,113 @@ export default function App() {
     }
   }, [sitePlanImage]);
 
+  // helper function to calculate distance
+  const calculateDistanceInKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2); 
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    const d = R * c;
+    return Number(d.toFixed(1));
+  };
+
   // ── UPDATE MARKERS DYNAMICALLY ───────────────────────
   useEffect(() => {
     const map = mapRef.current;
     const group = markersGroupRef.current;
     if (!map || !group || !isMapReady) return;
 
-    // Clear all layers to keep the site plan overlay completely clean as requested
+    // Clear all existing markers
     group.clearLayers();
-  }, [selectedVillaId, isMapReady]);
 
-  // ── DRAW ACCESS ROAD & LEL ─────────────────────────
+    // Filter POIs based on the active category state
+    const filteredPOIs = POINTS_OF_INTEREST.filter(poi => {
+      if (selectedCategory === 'all') return true;
+      return poi.category === selectedCategory;
+    });
+
+    // Populate filtered category markers
+    filteredPOIs.forEach(item => {
+      const cat = CATEGORIES.find(c => c.id === item.category) || CATEGORIES[0];
+      const dist = calculateDistanceInKm(
+        item.coordinates[0], 
+        item.coordinates[1], 
+        DEVELOPMENT_SPECS.pinCoordinates[0], 
+        DEVELOPMENT_SPECS.pinCoordinates[1]
+      );
+      const driveTimeSecs = (dist / 35) * 3600;
+      const driveTimeMins = Math.max(1, Math.round(driveTimeSecs / 60));
+
+      const pinIcon = L.divIcon({
+        html: `
+          <div class="relative flex items-center justify-center transition-all duration-200 hover:scale-[1.18] cursor-pointer" style="width: 32px; height: 42px;">
+            <svg width="32" height="42" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 4px 6px rgba(17, 24, 19, 0.35));">
+              <!-- Slender, jewelry-grade outer shell in Vianaar signature light gold -->
+              <path d="M16 2C10.48 2 6 6.48 6 12C6 19.5 16 40 16 40C16 40 26 19.5 26 12C26 6.48 21.52 2 16 2Z" fill="${cat.color}" stroke="#CBB69E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <!-- Elegant secondary white inner bezel for crisp architectural definition -->
+              <path d="M16 4C11.58 4 8 7.58 8 12C8 17.5 16 33.5 16 33.5C16 33.5 24 17.5 24 12C24 7.58 20.42 4 16 4Z" stroke="#FFFFFF" stroke-width="0.8" stroke-opacity="0.85" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              ${cat.svgInner}
+            </svg>
+          </div>
+        `,
+        className: 'custom-map-category-pin',
+        iconSize: [32, 42],
+        iconAnchor: [16, 40]
+      });
+
+      const tooltipContent = `
+        <div class="custom-luxury-poi-card" style="
+          background-color: #fcfaf6; 
+          border-radius: 12px; 
+          border: 1px solid rgba(113, 115, 104, 0.2); 
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.15);
+          padding: 12px 14px;
+          width: 200px;
+          color: #2F362C;
+          text-align: center;
+        ">
+          <div style="font-family: 'Cardo', Georgia, serif; font-size: 13px; font-weight: bold; color: #1e3d2f; margin-bottom: 5px; line-height: 1.25;">
+            ${item.name}
+          </div>
+          <div style="font-family: 'Mulish', sans-serif; font-size: 9px; font-weight: 300; letter-spacing: 1.2px; color: #717368; text-transform: uppercase; line-height: 1.2;">
+            ${driveTimeMins} MIN DRIVE
+          </div>
+          <div style="font-family: 'Mulish', sans-serif; font-size: 9px; font-weight: 300; letter-spacing: 1.2px; color: #717368; text-transform: uppercase; line-height: 1.2;">
+            ${dist} KM AWAY
+          </div>
+        </div>
+      `;
+
+      const marker = L.marker(item.coordinates, {
+        icon: pinIcon
+      }).addTo(group);
+
+      marker.bindTooltip(tooltipContent, {
+        className: 'custom-luxury-tooltip-wrap',
+        direction: 'top',
+        offset: [0, -10],
+        sticky: false,
+        permanent: false
+      });
+    });
+
+  }, [selectedCategory, isMapReady]);
+
+  // ── DRAW ROADS & LABELS ─────────────────────────
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !isMapReady) return;
 
-    // Create a LayerGroup specifically for the Access Road
+    // Create a LayerGroup specifically for roads and their labels
     const roadGroup = L.layerGroup().addTo(map);
     roadGroupRef.current = roadGroup;
 
-    // Define coordinates given by the user
-    const roadPoints: [number, number][] = [
+    // 1. ACCESS ROAD (Dotted)
+    const accessRoadPoints: [number, number][] = [
       [15.643383, 73.722969],
       [15.643144, 73.722954],
       [15.642987, 73.722686],
@@ -389,8 +479,7 @@ export default function App() {
       [15.643044, 73.720452]
     ];
 
-    // Create the white dotted/dashed road polyline (road of white colour, dotted line)
-    L.polyline(roadPoints, {
+    L.polyline(accessRoadPoints, {
       color: '#FFFFFF',
       weight: 4,
       dashArray: '8, 8',
@@ -399,10 +488,9 @@ export default function App() {
       opacity: 0.95
     }).addTo(roadGroup);
 
-    // Create custom styled Access Road label marker matching the attached picture
-    const labelIcon = L.divIcon({
+    const accessRoadLabelIcon = L.divIcon({
       html: `
-        <div class="select-none text-center shadow-md whitespace-nowrap" style="background-color: #0b3d27; color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: bold; padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 4px 8px rgba(0,0,0,0.15); display: inline-block;">
+        <div class="select-none text-center shadow-md whitespace-nowrap" style="background-color: #0b3d27; color: #ffffff; font-family: 'Mulish', system-ui, sans-serif; font-size: 9px; font-weight: 300; letter-spacing: 1px; text-transform: uppercase; padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 4px 8px rgba(0,0,0,0.15); display: inline-block;">
           Access Road
         </div>
       `,
@@ -412,9 +500,78 @@ export default function App() {
     });
 
     L.marker([15.642923, 73.722380], {
-      icon: labelIcon,
+      icon: accessRoadLabelIcon,
       interactive: false
     }).addTo(roadGroup);
+
+    // 2. ASHWEM ROAD (Solid White Line - Without Dot)
+    const ashwemRoadPoints: [number, number][] = [
+      [15.651101, 73.716376],
+      [15.650683, 73.716467],
+      [15.650298, 73.716511],
+      [15.649950, 73.716514],
+      [15.649768, 73.716572],
+      [15.649206, 73.716893],
+      [15.648567, 73.717202],
+      [15.647388, 73.717768],
+      [15.646757, 73.717925],
+      [15.646429, 73.718043],
+      [15.645960, 73.718342],
+      [15.645587, 73.718373],
+      [15.644919, 73.718724],
+      [15.643939, 73.719564],
+      [15.641330, 73.721992],
+      [15.638886, 73.724397],
+      [15.638503, 73.724846],
+      [15.638321, 73.725062],
+      [15.637720, 73.725652],
+      [15.636932, 73.726247],
+      [15.636590, 73.726504],
+      [15.636152, 73.726753],
+      [15.636023, 73.726834],
+      [15.635924, 73.726975],
+      [15.634943, 73.728655],
+      [15.633933, 73.730006],
+      [15.633094, 73.731570],
+      [15.632889, 73.731918],
+      [15.632376, 73.733315],
+      [15.632200, 73.733637],
+      [15.631745, 73.734341],
+      [15.630969, 73.735646],
+      [15.630512, 73.736319]
+    ];
+
+    L.polyline(ashwemRoadPoints, {
+      color: '#FFFFFF',
+      weight: 4,
+      lineCap: 'round',
+      lineJoin: 'round',
+      opacity: 0.95
+    }).addTo(roadGroup);
+
+    const ashwemRoadLabelIcon = L.divIcon({
+      html: `
+        <div class="select-none text-center shadow-md whitespace-nowrap" style="background-color: #0b3d27; color: #ffffff; font-family: 'Mulish', system-ui, sans-serif; font-size: 9px; font-weight: 300; letter-spacing: 1px; text-transform: uppercase; padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 4px 8px rgba(0,0,0,0.15); display: inline-block;">
+          Ashwem Road
+        </div>
+      `,
+      className: 'custom-road-label-icon',
+      iconSize: [85, 24],
+      iconAnchor: [42.5, 12]
+    });
+
+    const ashwemLabelCoords: [number, number][] = [
+      [15.632764, 73.732209],
+      [15.641403, 73.721919],
+      [15.647633, 73.717610]
+    ];
+
+    ashwemLabelCoords.forEach(coords => {
+      L.marker(coords, {
+        icon: ashwemRoadLabelIcon,
+        interactive: false
+      }).addTo(roadGroup);
+    });
 
     return () => {
       if (roadGroupRef.current) {
@@ -447,23 +604,42 @@ export default function App() {
   return (
     <div id="vianaar-platform-root" className="h-screen w-screen flex overflow-hidden bg-brand-charcoal text-white select-none selection:bg-brand-sage-pale selection:text-brand-green-dark">
       
+      {/* Floating Three Parallel Lines Menu Button (Hamburger Menu) */}
+      <button 
+        onClick={() => setIsSidebarOpen(true)}
+        className="fixed top-5 left-5 z-40 bg-[#FAF8F2] hover:bg-white text-[#234D3B] border border-brand-sand/40 h-12 w-12 rounded-full flex items-center justify-center shadow-xl transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
+        title="Open Navigation Menu"
+      >
+        <Menu size="20" />
+      </button>
+
+      {/* Backdrop overlay when sidebar is open */}
+      <div 
+        className={`fixed inset-0 bg-black/45 z-[45] transition-opacity duration-300 ${
+          isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={() => setIsSidebarOpen(false)}
+      />
+
       {/* ── SIDEBAR CONTAINER (LUXURY BRANDING & DIRECT ACTIONS) ────────── */}
-      <aside className="w-[380px] h-full flex flex-col bg-[#FAF8F2] text-[#2F362C] border-r border-brand-sand/40 z-50 shadow-2xl overflow-hidden pointer-events-auto">
+      <aside className={`fixed top-0 left-0 w-[380px] h-full flex flex-col bg-[#FAF8F2] text-[#2F362C] border-r border-brand-sand/40 z-50 shadow-2xl overflow-hidden pointer-events-auto transition-transform duration-350 ease-in-out transform ${
+        isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
         
         {/* Brand wordmark / Title banner matching the screenshot exactly */}
         <div className="pt-10 pb-6 px-6 border-b border-brand-sand/30 bg-[#FAF8F2] relative text-center select-none">
-          <span className="block text-[10px] font-sans tracking-[4px] uppercase text-[#717368] font-bold mb-1">VIANAAR HOMES</span>
+          <span className="block text-[10px] font-sans tracking-[4px] uppercase text-[#717368] font-light mb-1">VIANAAR HOMES</span>
           <h1 className="text-4xl font-serif text-[#234D3B] tracking-tight font-normal leading-tight">
             Ashwem <span className="italic font-serif block mt-1">Phase 1</span>
           </h1>
-          <span className="block text-[10px] font-sans tracking-[2.5px] uppercase text-[#717368]/85 font-semibold mt-3">ASHWEM . NORTH GOA</span>
+          <span className="block text-[10px] font-sans tracking-[2.5px] uppercase text-[#717368]/85 font-light mt-3">ASHWEM . NORTH GOA</span>
           <div className="w-16 h-[1.5px] bg-[#CBB69E] mt-5 mx-auto" />
           
           {/* Small visual close button like in the design */}
           <button 
             className="absolute top-4 right-4 text-gray-400 hover:text-brand-green-dark transition cursor-pointer font-sans text-lg font-light"
-            onClick={() => setSelectedVillaId(selectedVillaId === 'la-ermida' ? 'la-ribera' : 'la-ermida')}
-            title="Toggle active styles"
+            onClick={() => setIsSidebarOpen(false)}
+            title="Close Navigation Menu"
           >
             <X size="20" />
           </button>
@@ -478,7 +654,7 @@ export default function App() {
               handleCenterMap();
               setShowOverlay(true);
             }}
-            className="w-full py-4 px-6 bg-[#5B6C58] hover:bg-[#234D3B] text-brand-white-warm font-sans font-bold text-xs tracking-[1.5px] rounded-2xl flex items-center justify-center gap-2.5 transition-all shadow-md cursor-pointer hover:-translate-y-0.5"
+            className="w-full py-4 px-6 bg-[#5B6C58] hover:bg-[#234D3B] text-brand-white-warm font-sans font-light text-xs tracking-[1.5px] rounded-2xl flex items-center justify-center gap-2.5 transition-all shadow-md cursor-pointer hover:-translate-y-0.5"
           >
             <Compass size="16" />
             TO SITE MAP
@@ -487,7 +663,7 @@ export default function App() {
           {/* SELECT MODEL SECTION */}
           <div>
             <div className="flex justify-between items-baseline mb-3">
-              <span className="text-[10px] font-sans font-bold tracking-[1.5px] uppercase text-[#717368]">SELECT BLOCK</span>
+              <span className="text-[10px] font-sans font-light tracking-[1.5px] uppercase text-[#717368]">SELECT BLOCK</span>
             </div>
             
             <div className="space-y-3">
@@ -509,9 +685,9 @@ export default function App() {
                       <span className={`font-serif text-2xl font-bold tracking-tight ${isActive ? 'text-[#234D3B]' : 'text-[#717368]/95'}`}>
                         {villa.name}
                       </span>
-                      <span className={`text-[10px] font-sans font-bold px-3 py-1 rounded-full border ${
+                      <span className={`text-[10px] font-sans font-light px-3 py-1 rounded-full border ${
                         isActive 
-                          ? 'bg-[#257057]/10 text-[#257057] border-[#257057]/20 font-extrabold' 
+                          ? 'bg-[#257057]/10 text-[#257057] border-[#257057]/20' 
                           : 'bg-gray-100 text-gray-500 border-gray-250'
                       }`}>
                         {unitCount} Units
@@ -571,7 +747,7 @@ export default function App() {
                     sub: "Classical Chapel-Inspired Pavilion visualization"
                   });
                 }}
-                className="py-3 px-4 bg-white hover:bg-brand-green-dark hover:text-white text-brand-green-dark text-[11px] font-sans font-bold tracking-wider uppercase rounded-xl border border-brand-sand/65 shadow-sm transition duration-155 cursor-pointer text-center"
+                className="py-3 px-4 bg-white hover:bg-brand-green-dark hover:text-white text-brand-green-dark text-[11px] font-sans font-light tracking-wider uppercase rounded-xl border border-brand-sand/65 shadow-sm transition duration-155 cursor-pointer text-center"
               >
                 La Ermida
               </button>
@@ -584,11 +760,36 @@ export default function App() {
                     sub: "Sustainable Riverfront Oasis visualization"
                   });
                 }}
-                className="py-3 px-4 bg-white hover:bg-brand-green-dark hover:text-white text-brand-green-dark text-[11px] font-sans font-bold tracking-wider uppercase rounded-xl border border-brand-sand/65 shadow-sm transition duration-155 cursor-pointer text-center"
+                className="py-3 px-4 bg-white hover:bg-brand-green-dark hover:text-white text-brand-green-dark text-[11px] font-sans font-light tracking-wider uppercase rounded-xl border border-brand-sand/65 shadow-sm transition duration-155 cursor-pointer text-center"
               >
                 La Ribera
               </button>
 
+            </div>
+          </div>
+
+          <hr className="border-t border-brand-sand/35" />
+
+          {/* GEOLOCATION CATEGORY FILTERS */}
+          <div className="animate-fadeIn">
+            <span className="block text-[10px] font-sans font-light tracking-[1.5px] uppercase text-[#717368] mb-3">FILTERS</span>
+            <div className="flex flex-wrap gap-2">
+              {CATEGORIES.map((cat) => {
+                const isActive = selectedCategory === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`px-4 py-2 text-[10px] font-sans font-light tracking-wider uppercase rounded-full border transition duration-150 cursor-pointer shadow-sm select-none ${
+                      isActive
+                        ? 'bg-[#5B6C58] border-transparent text-white shadow-md transform hover:scale-[1.02] active:scale-[0.98]'
+                        : 'bg-white hover:bg-[#F3FAF7]/50 text-[#5B6C58] border-[#5B6C58]/25 hover:border-[#5B6C58]/40 active:scale-[0.98]'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -740,7 +941,7 @@ export default function App() {
                   VILLA {interactiveFloorPlanVilla}
                 </h2>
                 <div className="flex items-center gap-1.5 mt-1">
-                  <span className="text-[10px] font-sans font-bold tracking-[2px] text-gray-400 uppercase">
+                  <span className="text-[10px] font-sans font-light tracking-[2px] text-gray-400 uppercase">
                     FLOOR PLAN PERSPECTIVE
                   </span>
                   <span className="text-[10px] text-gray-300">•</span>
@@ -768,7 +969,7 @@ export default function App() {
                 
                 {/* 1. Dimension Toggle */}
                 <div>
-                  <span className="block text-[10px] uppercase tracking-widest text-[#B9816B] font-bold mb-2">
+                  <span className="block text-[10px] uppercase tracking-widest text-[#B9816B] font-light mb-2">
                     Dimensions
                   </span>
                   <div className="flex bg-gray-100 p-1 rounded-full text-xs font-bold relative mt-1.5 overflow-hidden border border-brand-sand/20">
@@ -797,13 +998,13 @@ export default function App() {
 
                 {/* 2. Floor Level Selector */}
                 <div>
-                  <span className="block text-[10px] uppercase tracking-widest text-[#B9816B] font-bold mb-2">
+                  <span className="block text-[10px] uppercase tracking-widest text-[#B9816B] font-light mb-2">
                     Floor Level
                   </span>
                   <div className="space-y-2 mt-1.5">
                     <button
                       onClick={() => setFloorLevelMode("Ground Floor")}
-                      className={`w-full text-left px-4 py-3 rounded-lg text-xs font-bold font-sans transition-all flex items-center justify-between border cursor-pointer ${
+                      className={`w-full text-left px-4 py-3 rounded-lg text-xs font-light font-sans transition-all flex items-center justify-between border cursor-pointer ${
                         floorLevelMode === "Ground Floor" 
                           ? "bg-[#234D3B] border-[#234D3B] text-brand-white-warm shadow-md" 
                           : "bg-white border-brand-sand/55 text-gray-500 hover:border-[#234D3B] hover:text-brand-charcoal"
@@ -815,7 +1016,7 @@ export default function App() {
                     
                     <button
                       onClick={() => setFloorLevelMode("First Floor")}
-                      className={`w-full text-left px-4 py-3 rounded-lg text-xs font-bold font-sans transition-all flex items-center justify-between border cursor-pointer ${
+                      className={`w-full text-left px-4 py-3 rounded-lg text-xs font-light font-sans transition-all flex items-center justify-between border cursor-pointer ${
                         floorLevelMode === "First Floor" 
                           ? "bg-[#234D3B] border-[#234D3B] text-brand-white-warm shadow-md" 
                           : "bg-white border-brand-sand/55 text-gray-500 hover:border-[#234D3B] hover:text-brand-charcoal"
@@ -869,7 +1070,7 @@ export default function App() {
                     <span className="block font-serif text-lg font-bold text-[#234D3B]">
                       Villa {interactiveFloorPlanVilla}
                     </span>
-                    <span className="block text-[10px] text-gray-400 tracking-wider uppercase font-bold">
+                    <span className="block text-[10px] text-gray-400 tracking-wider uppercase font-light">
                       {floorLevelMode} Layout (Dimensions {dimensionMode})
                     </span>
                   </div>

@@ -22,6 +22,18 @@ body {
   background-color: var(--color-brand-charcoal);
   color: var(--color-brand-charcoal);
   font-family: var(--font-sans);
+  font-weight: 300; /* Mulish Light as default */
+}
+
+/* Ensure headings default strictly to Cardo serif */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+}
+
+/* Ensure buttons, inputs, select fields inherit Mulish Light */
+button, input, select, textarea, label {
+  font-family: var(--font-sans);
+  font-weight: 300;
 }
 
 /* leaflet styling custom overrides to match Vianaar theme */
@@ -58,4 +70,25 @@ body {
   height: auto !important;
   transition: none !important;
 }
+
+.custom-map-category-pin {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+.custom-luxury-tooltip-wrap {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.custom-luxury-tooltip-wrap::before {
+  border-top-color: #fcfaf6 !important;
+  border-bottom-color: #fcfaf6 !important;
+}
+
 
