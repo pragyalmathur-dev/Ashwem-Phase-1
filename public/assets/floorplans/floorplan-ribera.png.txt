@@ -1,1 +1,145 @@
-# Place floorplan-ribera.png in this folder to show the layout plan of La Ribera.
+# =========================================================================
+# LA RIBERA (LR) UNIT FLOOR PLANS - NAMING CONVENTION CONDUIT
+# =========================================================================
+# The interactive viewer under Ashwem Phase 1 parses individual villa floor plan paths 
+# dynamically in the client state. To prevent missing physical images, all asset files 
+# MUST comply exactly with the following schema:
+#
+# ─────────────────────────────────────────────────────────────────────────
+# PATH FORMULA:
+# /assets/floorplans/LR_{unitNumber}_{floorLevel}_{dimensionMode}.jpg
+# ─────────────────────────────────────────────────────────────────────────
+#
+# PARAMETERS EXPLAINED:
+# 1. Prefix:         LR (constant for La Ribera villas)
+# 2. unitNumber:     Two-digit padded identifier (e.g., 01, 02, ..., 12, 14, ..., 21)
+# 3. floorLevel:     GF (Ground Floor) or FF (First Floor)
+# 4. dimensionMode:  WD (With Dimensions) or WOD (Without Dimensions)
+#
+# ─────────────────────────────────────────────────────────────────────────
+# COMPREHENSIVE FILE LIST SCHEMA (80 Files Expected):
+# ─────────────────────────────────────────────────────────────────────────
+#
+# Unit 01:
+#   - LR_01_GF_WD.jpg
+#   - LR_01_GF_WOD.jpg
+#   - LR_01_FF_WD.jpg
+#   - LR_01_FF_WOD.jpg
+#
+# Unit 02:
+#   - LR_02_GF_WD.jpg
+#   - LR_02_GF_WOD.jpg
+#   - LR_02_FF_WD.jpg
+#   - LR_02_FF_WOD.jpg
+#
+# Unit 03:
+#   - LR_03_GF_WD.jpg
+#   - LR_03_GF_WOD.jpg
+#   - LR_03_FF_WD.jpg
+#   - LR_03_FF_WOD.jpg
+#
+# Unit 04:
+#   - LR_04_GF_WD.jpg
+#   - LR_04_GF_WOD.jpg
+#   - LR_04_FF_WD.jpg
+#   - LR_04_FF_WOD.jpg
+#
+# Unit 05:
+#   - LR_05_GF_WD.jpg
+#   - LR_05_GF_WOD.jpg
+#   - LR_05_FF_WD.jpg
+#   - LR_05_FF_WOD.jpg
+#
+# Unit 06:
+#   - LR_06_GF_WD.jpg
+#   - LR_06_GF_WOD.jpg
+#   - LR_06_FF_WD.jpg
+#   - LR_06_FF_WOD.jpg
+#
+# Unit 07:
+#   - LR_07_GF_WD.jpg
+#   - LR_07_GF_WOD.jpg
+#   - LR_07_FF_WD.jpg
+#   - LR_07_FF_WOD.jpg
+#
+# Unit 08:
+#   - LR_08_GF_WD.jpg
+#   - LR_08_GF_WOD.jpg
+#   - LR_08_FF_WD.jpg
+#   - LR_08_FF_WOD.jpg
+#
+# Unit 09:
+#   - LR_09_GF_WD.jpg
+#   - LR_09_GF_WOD.jpg
+#   - LR_09_FF_WD.jpg
+#   - LR_09_FF_WOD.jpg
+#
+# Unit 10:
+#   - LR_10_GF_WD.jpg
+#   - LR_10_GF_WOD.jpg
+#   - LR_10_FF_WD.jpg
+#   - LR_10_FF_WOD.jpg
+#
+# Unit 11:
+#   - LR_11_GF_WD.jpg
+#   - LR_11_GF_WOD.jpg
+#   - LR_11_FF_WD.jpg
+#   - LR_11_FF_WOD.jpg
+#
+# Unit 12:
+#   - LR_12_GF_WD.jpg
+#   - LR_12_GF_WOD.jpg
+#   - LR_12_FF_WD.jpg
+#   - LR_12_FF_WOD.jpg
+#
+# Unit 14 (No Unit 13 due to tradition & spec layout):
+#   - LR_14_GF_WD.jpg
+#   - LR_14_GF_WOD.jpg
+#   - LR_14_FF_WD.jpg
+#   - LR_14_FF_WOD.jpg
+#
+# Unit 15:
+#   - LR_15_GF_WD.jpg
+#   - LR_15_GF_WOD.jpg
+#   - LR_15_FF_WD.jpg
+#   - LR_15_FF_WOD.jpg
+#
+# Unit 16:
+#   - LR_16_GF_WD.jpg
+#   - LR_16_GF_WOD.jpg
+#   - LR_16_FF_WD.jpg
+#   - LR_16_FF_WOD.jpg
+#
+# Unit 17:
+#   - LR_17_GF_WD.jpg
+#   - LR_17_GF_WOD.jpg
+#   - LR_17_FF_WD.jpg
+#   - LR_17_FF_WOD.jpg
+#
+# Unit 18:
+#   - LR_18_GF_WD.jpg
+#   - LR_18_GF_WOD.jpg
+#   - LR_18_FF_WD.jpg
+#   - LR_18_FF_WOD.jpg
+#
+# Unit 19:
+#   - LR_19_GF_WD.jpg
+#   - LR_19_GF_WOD.jpg
+#   - LR_19_FF_WD.jpg
+#   - LR_19_FF_WOD.jpg
+#
+# Unit 20:
+#   - LR_20_GF_WD.jpg
+#   - LR_20_GF_WOD.jpg
+#   - LR_20_FF_WD.jpg
+#   - LR_20_FF_WOD.jpg
+#
+# Unit 21:
+#   - LR_21_GF_WD.jpg
+#   - LR_21_GF_WOD.jpg
+#   - LR_21_FF_WD.jpg
+#   - LR_21_FF_WOD.jpg
+#
+# Note: Any missing image is automatically covered via the pure SVG 
+#       vector layout helper embedded in App.tsx!
+# =========================================================================
