@@ -671,15 +671,7 @@ export default function App() {
         </span>
       </div>
 
-      {/* Custom compass floating widget on Top Right */}
-      <div className="fixed top-5 right-5 z-40 pointer-events-auto bg-brand-green-dark/95 hover:bg-brand-green border border-brand-green h-12 w-12 rounded-full flex items-center justify-center shadow-xl transition select-none backdrop-blur-md">
-        <svg viewBox="0 0 30 30" fill="none" className="w-8 h-8 pointer-events-none transform transition hover:rotate-12 duration-500">
-          <circle cx="15" cy="15" r="13.5" stroke="#257057" strokeWidth="1"/>
-          <polygon points="15,4 17,13 15,11.5 13,13" fill="#D9E8C0"/>
-          <polygon points="15,26 13,17 15,18.5 17,17" fill="rgba(255,254,247,.3)"/>
-          <text x="15" y="9.2" textAnchor="middle" fontSize="6.2" fill="#D9E8C0" fontFamily="Cardo, Georgia, serif" fontWeight="700">N</text>
-        </svg>
-      </div>
+
 
       {/* Map custom control overlay box (Standard floating tiles) on Bottom-Right */}
       <div className="fixed bottom-6 right-5 z-40 flex flex-col gap-3 pointer-events-auto items-center">
