@@ -29,7 +29,8 @@ import {
   X,
   Plus,
   Minus,
-  Menu
+  Menu,
+  Locate
 } from 'lucide-react';
 import { VILLAS, DEVELOPMENT_SPECS, DEFAULT_TUNER_CONFIG, ASSETS } from './data';
 import { TunerConfig, VillaData } from './types';
@@ -39,10 +40,12 @@ import { POINTS_OF_INTEREST, CATEGORIES, PointOfInterest, CategoryMetadata } fro
 function generateFallbackFloorPlanSVG(
   villaNum: string,
   dimensionMode: "With" | "Without",
-  floorLevel: "Ground Floor" | "First Floor"
+  floorLevel: "Ground Floor" | "First Floor",
+  villaId: string
 ): string {
   const isWith = dimensionMode === "With";
   const isGF = floorLevel === "Ground Floor";
+  const villaCode = villaId === 'la-ermida' ? 'LE' : 'LR';
 
   const compassSvg = `
     <g transform="translate(730, 80) scale(0.6)">
@@ -177,9 +180,7 @@ function generateFallbackFloorPlanSVG(
       ${isGF ? gfPlan : ffPlan}
       <text x="50" y="540" font-family="serif" font-size="20" font-weight="bold" fill="%23234D3B">Villa ${villaNum}</text>
       <text x="50" y="560" font-family="sans-serif" font-size="12" fill="%23257057" font-weight="bold" letter-spacing="1.5" opacity="0.8">${floorLevel.toUpperCase()} ${isWith ? '- WITH DIMENSIONS' : '- WITHOUT DIMENSIONS'}</text>
-      <rect x="360" y="525" width="390" height="45" rx="5" fill="%23257057" opacity="0.05" />
-      <text x="375" y="543" font-family="sans-serif" font-size="9" font-weight="bold" fill="%23257057">UPLOAD FILE TO /public/assets/floorplans/</text>
-      <text x="375" y="556" font-family="monospace" font-size="9" fill="%23AA783B">${dimensionMode === 'With' ? 'WD' : 'WOD'}_${villaNum}_${isGF ? 'GF' : 'FF'}.png</text>
+      <rect x="360" y="525" width="390" height="45" rx="5" fill="%23257057" opacity="0" />
     </svg>
   `;
 
@@ -218,6 +219,52 @@ export default function App() {
   const [interactiveFloorPlanVilla, setInteractiveFloorPlanVilla] = useState<string>("04");
   const [dimensionMode, setDimensionMode] = useState<"With" | "Without">("With");
   const [floorLevelMode, setFloorLevelMode] = useState<"Ground Floor" | "First Floor">("Ground Floor");
+
+  // Floor plan dialog zoom and drag-pan states/handlers
+  const [floorPlanZoom, setFloorPlanZoom] = useState<number>(1);
+  const [floorPlanPosition, setFloorPlanPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isPanningFloorPlan, setIsPanningFloorPlan] = useState<boolean>(false);
+  const [panStart, setPanStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  useEffect(() => {
+    setFloorPlanZoom(1);
+    setFloorPlanPosition({ x: 0, y: 0 });
+    setIsPanningFloorPlan(false);
+  }, [interactiveFloorPlanVilla, dimensionMode, floorLevelMode, interactiveFloorPlanOpen]);
+
+  const handleFloorPlanMouseDown = (e: React.MouseEvent) => {
+    if (floorPlanZoom <= 1) return;
+    setIsPanningFloorPlan(true);
+    setPanStart({ x: e.clientX - floorPlanPosition.x, y: e.clientY - floorPlanPosition.y });
+  };
+
+  const handleFloorPlanMouseMove = (e: React.MouseEvent) => {
+    if (!isPanningFloorPlan) return;
+    setFloorPlanPosition({
+      x: e.clientX - panStart.x,
+      y: e.clientY - panStart.y,
+    });
+  };
+
+  const handleFloorPlanMouseUp = () => {
+    setIsPanningFloorPlan(false);
+  };
+
+  const handleFloorPlanTouchStart = (e: React.TouchEvent) => {
+    if (floorPlanZoom <= 1 || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    setIsPanningFloorPlan(true);
+    setPanStart({ x: touch.clientX - floorPlanPosition.x, y: touch.clientY - floorPlanPosition.y });
+  };
+
+  const handleFloorPlanTouchMove = (e: React.TouchEvent) => {
+    if (!isPanningFloorPlan || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    setFloorPlanPosition({
+      x: touch.clientX - panStart.x,
+      y: touch.clientY - panStart.y,
+    });
+  };
 
   // ── REFERENCES ───────────────────────────────────────
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -613,6 +660,81 @@ export default function App() {
         <Menu size="20" />
       </button>
 
+      {/* Dynamic Top Floating Title Chip */}
+      <div className="fixed top-5 left-1/2 -translate-x-1/2 bg-brand-green-dark/95 border border-brand-green text-brand-white-warm px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-3 z-40 pointer-events-auto select-none backdrop-blur-md">
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-sage-pale opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-sage-pale"></span>
+        </span>
+        <span className="text-[10px] font-sans font-bold tracking-[3.5px] uppercase whitespace-nowrap text-brand-white-warm">
+          {DEVELOPMENT_SPECS.title} &nbsp;·&nbsp; Interactive Site Plan
+        </span>
+      </div>
+
+      {/* Custom compass floating widget on Top Right */}
+      <div className="fixed top-5 right-5 z-40 pointer-events-auto bg-brand-green-dark/95 hover:bg-brand-green border border-brand-green h-12 w-12 rounded-full flex items-center justify-center shadow-xl transition select-none backdrop-blur-md">
+        <svg viewBox="0 0 30 30" fill="none" className="w-8 h-8 pointer-events-none transform transition hover:rotate-12 duration-500">
+          <circle cx="15" cy="15" r="13.5" stroke="#257057" strokeWidth="1"/>
+          <polygon points="15,4 17,13 15,11.5 13,13" fill="#D9E8C0"/>
+          <polygon points="15,26 13,17 15,18.5 17,17" fill="rgba(255,254,247,.3)"/>
+          <text x="15" y="9.2" textAnchor="middle" fontSize="6.2" fill="#D9E8C0" fontFamily="Cardo, Georgia, serif" fontWeight="700">N</text>
+        </svg>
+      </div>
+
+      {/* Map custom control overlay box (Standard floating tiles) on Bottom-Right */}
+      <div className="fixed bottom-6 right-5 z-40 flex flex-col gap-3 pointer-events-auto items-center">
+        
+        {/* Toggle default layout alignment overlay display */}
+        <button 
+          onClick={() => setShowOverlay(prev => !prev)}
+          className={`w-11 h-11 rounded-xl shadow-lg border transition flex items-center justify-center cursor-pointer ${
+            showOverlay 
+              ? 'bg-[#1e3d2f] text-white border-brand-green/30' 
+              : 'bg-black/95 hover:bg-black text-white/70 border-white/10'
+          }`}
+          title="Toggle Layout Blueprint Overlay Display"
+        >
+          {showOverlay ? <Eye size="18" /> : <EyeOff size="18" />}
+        </button>
+
+        {/* Center locator button in black theme */}
+        <button 
+          onClick={() => {
+            handleCenterMap();
+            setShowOverlay(true);
+          }}
+          className="w-11 h-11 bg-black/95 hover:bg-black text-white rounded-xl shadow-xl border border-white/10 flex items-center justify-center transition cursor-pointer select-none"
+          title="Show site map with superimposed layout"
+        >
+          <Locate size="20" />
+        </button>
+
+        {/* Zoom controls vertical pill */}
+        <div className="w-11 bg-black/95 text-white rounded-xl shadow-xl flex flex-col items-center py-1 border border-white/10 select-none">
+          {/* Zoom In */}
+          <button 
+            onClick={() => handleZoomMap(true)}
+            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/10 text-white/90 hover:text-white transition cursor-pointer"
+            title="Zoom In"
+          >
+            <Plus size="18" />
+          </button>
+
+          {/* Divider line */}
+          <div className="w-6 border-b border-white/10 my-0.5" />
+
+          {/* Zoom Out */}
+          <button 
+            onClick={() => handleZoomMap(false)}
+            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/10 text-white/90 hover:text-white transition cursor-pointer"
+            title="Zoom Out"
+          >
+            <Minus size="18" />
+          </button>
+        </div>
+
+      </div>
+
       {/* Backdrop overlay when sidebar is open */}
       <div 
         className={`fixed inset-0 bg-black/45 z-[45] transition-opacity duration-300 ${
@@ -648,18 +770,6 @@ export default function App() {
         {/* Scrollable Sidebar Content Body */}
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-6 gap-6">
           
-          {/* TO SITE MAP BUTTON */}
-          <button 
-            onClick={() => {
-              handleCenterMap();
-              setShowOverlay(true);
-            }}
-            className="w-full py-4 px-6 bg-[#5B6C58] hover:bg-[#234D3B] text-brand-white-warm font-sans font-light text-xs tracking-[1.5px] rounded-2xl flex items-center justify-center gap-2.5 transition-all shadow-md cursor-pointer hover:-translate-y-0.5"
-          >
-            <Compass size="16" />
-            TO SITE MAP
-          </button>
-
           {/* SELECT MODEL SECTION */}
           <div>
             <div className="flex justify-between items-baseline mb-3">
@@ -696,20 +806,13 @@ export default function App() {
 
                     {/* INTERACTIVE FLOOR PLAN HOVER/SELECT GRID DRIVEN DIRECTLY BY THE BLOCK SELECTION */}
                     {isActive && (
-                      <div className="p-4 bg-white/70 rounded-2xl border border-brand-sand/35 shadow-inner animate-fadeIn space-y-3 text-left">
-                        <div className="flex items-center justify-between">
-                          <span className="block text-[10px] font-sans font-bold tracking-wider text-brand-terracotta uppercase flex items-center gap-1">
-                            <Sparkles size="11" />
-                            Individual Villa Layouts (1-{unitCount})
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-gray-500 font-light leading-snug">
-                          Select a unit number below to load its interactive floor plan perspective with depth scaling and levels.
-                        </p>
-                        
-                        <div className="grid grid-cols-5 gap-1.5 pt-1">
-                          {Array.from({ length: unitCount }, (_, i) => {
-                            const numStr = String(i + 1).padStart(2, '0');
+                      <div className="p-4 bg-white/70 rounded-2xl border border-brand-sand/35 shadow-inner animate-fadeIn text-left">
+                        <div className="grid grid-cols-5 gap-1.5">
+                          {(villa.id === 'la-ermida'
+                            ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18]
+                            : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21]
+                          ).map((num) => {
+                            const numStr = String(num).padStart(2, '0');
                             return (
                               <button
                                 key={numStr}
@@ -874,72 +977,6 @@ export default function App() {
         {/* Interactive map placeholder element */}
         <div ref={mapContainerRef} className="w-full h-full" />
 
-        {/* Dynamic Top Floating Title Chip */}
-        <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-brand-green-dark/95 border border-brand-green text-brand-white-warm px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-3 z-30 pointer-events-auto select-none backdrop-blur-md">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-sage-pale opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-sage-pale"></span>
-          </span>
-          <span className="text-[10px] font-sans font-bold tracking-[3.5px] uppercase whitespace-nowrap text-brand-white-warm">
-            {DEVELOPMENT_SPECS.title} &nbsp;·&nbsp; Interactive Site Plan
-          </span>
-        </div>
-
-        {/* Custom compass floating widget on Top Right */}
-        <div className="absolute top-5 right-5 z-30 pointer-events-auto bg-brand-green-dark/95 hover:bg-brand-green border border-brand-green h-12 w-12 rounded-full flex items-center justify-center shadow-xl transition select-none backdrop-blur-md">
-          <svg viewBox="0 0 30 30" fill="none" className="w-8 h-8 pointer-events-none transform transition hover:rotate-12 duration-500">
-            <circle cx="15" cy="15" r="13.5" stroke="#257057" strokeWidth="1"/>
-            <polygon points="15,4 17,13 15,11.5 13,13" fill="#D9E8C0"/>
-            <polygon points="15,26 13,17 15,18.5 17,17" fill="rgba(255,254,247,.3)"/>
-            <text x="15" y="9.2" textAnchor="middle" fontSize="6.2" fill="#D9E8C0" fontFamily="Cardo, Georgia, serif" fontWeight="700">N</text>
-          </svg>
-        </div>
-
-        {/* Map custom control overlay box (Standard floating tiles) on Middle-Right */}
-        <div className="absolute bottom-6 right-5 z-30 flex flex-col gap-2.5 pointer-events-auto bg-transparent">
-          
-          {/* Main location reset map bounds button */}
-          <button 
-            onClick={() => zoomToCoordinate(DEVELOPMENT_SPECS.pinCoordinates, 18)}
-            className="p-3 bg-brand-white-warm hover:bg-brand-sage-pale text-brand-green-dark rounded-xl shadow-lg border border-brand-sand transition flex items-center justify-center cursor-pointer"
-            title="Recenter main project complex coordinates"
-          >
-            <Compass size="18" />
-          </button>
-
-          {/* Toggle default layout alignment overlay display */}
-          <button 
-            onClick={() => setShowOverlay(prev => !prev)}
-            className={`p-3 rounded-xl shadow-lg border transition flex items-center justify-center cursor-pointer ${
-              showOverlay 
-                ? 'bg-brand-green-dark border-brand-green text-brand-white-warm' 
-                : 'bg-brand-white-warm border-brand-sand text-gray-500'
-            }`}
-            title="Toggle Layout Blueprint Overlay Display"
-          >
-            {showOverlay ? <Eye size="18" /> : <EyeOff size="18" />}
-          </button>
-
-          {/* Zoom In button */}
-          <button 
-            onClick={() => handleZoomMap(true)}
-            className="p-3 bg-brand-white-warm hover:bg-brand-sage-pale text-brand-green-dark rounded-xl shadow-lg border border-brand-sand transition flex items-center justify-center font-bold text-base cursor-pointer"
-            title="Zoom In"
-          >
-            <Plus size="18" />
-          </button>
-
-          {/* Zoom Out button */}
-          <button 
-            onClick={() => handleZoomMap(false)}
-            className="p-3 bg-brand-white-warm hover:bg-brand-sage-pale text-brand-green-dark rounded-xl shadow-lg border border-brand-sand transition flex items-center justify-center font-bold text-base cursor-pointer"
-            title="Zoom Out"
-          >
-            <Minus size="18" />
-          </button>
-
-        </div>
-
       </main>
 
 
@@ -1101,40 +1138,77 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Note: In accordance with user request, no 'Enquire Now' button is placed here */}
-                <div className="mt-auto hidden md:block pt-6 border-t border-brand-sand/10">
-                  <div className="bg-brand-sage-pale/40 p-3 rounded-lg border border-brand-sand/30">
-                    <p className="text-[10px] leading-relaxed text-gray-500 font-light">
-                      *Toggling parameters immediately adapts the layout values. Custom images uploaded to <code className="font-mono text-[9px] bg-brand-charcoal/5 px-1 py-0.5 rounded">/public/assets/floorplans</code> override fallback wireframes dynamically.
-                    </p>
-                  </div>
-                </div>
+
 
               </div>
 
               {/* Right Showcase Area */}
               <div className="flex-1 overflow-hidden flex flex-col bg-white relative p-6 md:p-10 select-none items-center justify-center">
                 
-                {/* Live constructed filename indicator */}
-                <div className="absolute top-4 left-4 z-10 px-2.5 py-1 bg-brand-charcoal/5 rounded text-[9px] font-mono text-gray-500 tracking-wider">
-                  FILE: {dimensionMode === 'With' ? 'WD' : 'WOD'}_{interactiveFloorPlanVilla}_{floorLevelMode === 'Ground Floor' ? 'GF' : 'FF'}.png
-                </div>
+
 
                 {/* Floor Plan Image with dynamic pathing and SVG rendering fallback on error */}
-                <div className="w-full h-full max-h-[460px] flex items-center justify-center relative overflow-hidden bg-[#FFFEF7] rounded-xl border border-brand-sand/40 p-4">
+                <div 
+                  className={`w-full h-full max-h-[460px] flex items-center justify-center relative overflow-hidden bg-[#FFFEF7] rounded-xl border border-brand-sand/40 p-4 select-none ${
+                    floorPlanZoom > 1 ? 'cursor-grab active:cursor-grabbing' : ''
+                  }`}
+                  onMouseDown={handleFloorPlanMouseDown}
+                  onMouseMove={handleFloorPlanMouseMove}
+                  onMouseUp={handleFloorPlanMouseUp}
+                  onMouseLeave={handleFloorPlanMouseUp}
+                  onTouchStart={handleFloorPlanTouchStart}
+                  onTouchMove={handleFloorPlanTouchMove}
+                  onTouchEnd={handleFloorPlanMouseUp}
+                >
                   <img
-                    src={`/assets/floorplans/${dimensionMode === 'With' ? 'WD' : 'WOD'}_${interactiveFloorPlanVilla}_${floorLevelMode === 'Ground Floor' ? 'GF' : 'FF'}.png`}
+                    src={`/assets/floorplans/${selectedVilla.id === 'la-ermida' ? 'LE' : 'LR'}_${interactiveFloorPlanVilla}_${floorLevelMode === 'Ground Floor' ? 'GF' : 'FF'}_${dimensionMode === 'With' ? 'WD' : 'WOD'}.jpg`}
                     alt={`Villa ${interactiveFloorPlanVilla} Floor Plan - ${floorLevelMode}`}
                     referrerPolicy="no-referrer"
-                    className="max-h-full max-w-full object-contain pointer-events-none transition duration-500"
+                    className="max-h-full max-w-full object-contain pointer-events-none transition-transform duration-200 ease-out origin-center select-none"
+                    style={{
+                      transform: `translate(${floorPlanPosition.x}px, ${floorPlanPosition.y}px) scale(${floorPlanZoom})`,
+                    }}
                     onError={(e) => {
                       const target = e.currentTarget;
-                      const fallback = generateFallbackFloorPlanSVG(interactiveFloorPlanVilla, dimensionMode, floorLevelMode);
+                      const fallback = generateFallbackFloorPlanSVG(interactiveFloorPlanVilla, dimensionMode, floorLevelMode, selectedVilla.id);
                       if (target.src !== fallback) {
                         target.src = fallback;
                       }
                     }}
                   />
+
+                  {/* Zoom controls vertical pill for Floor Plan */}
+                  <div className="absolute bottom-4 right-4 z-25 flex flex-col items-center bg-black/90 backdrop-blur-md p-1 rounded-xl shadow-2xl border border-white/20 select-none">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFloorPlanZoom(prev => Math.min(prev + 0.5, 4));
+                      }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-white/90 hover:text-white transition cursor-pointer"
+                      title="Zoom In Floor Plan"
+                    >
+                      <Plus size="16" />
+                    </button>
+                    
+                    <div className="w-5 border-b border-white/10 my-0.5" />
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFloorPlanZoom(prev => {
+                          const val = Math.max(prev - 0.5, 1);
+                          if (val === 1) {
+                            setFloorPlanPosition({ x: 0, y: 0 });
+                          }
+                          return val;
+                        });
+                      }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-white/90 hover:text-white transition cursor-pointer"
+                      title="Zoom Out Floor Plan"
+                    >
+                      <Minus size="16" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Footer specs details */}
@@ -1144,7 +1218,7 @@ export default function App() {
                       Villa {interactiveFloorPlanVilla}
                     </span>
                     <span className="block text-[10px] text-gray-400 tracking-wider uppercase font-light">
-                      {floorLevelMode} Layout (Dimensions {dimensionMode})
+                      {floorLevelMode} Layout - {dimensionMode === 'With' ? 'With Dimensions' : 'Without Dimensions'}
                     </span>
                   </div>
                   <div className="text-right">
