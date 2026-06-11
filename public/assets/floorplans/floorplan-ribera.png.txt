@@ -12,12 +12,12 @@
 #
 # PARAMETERS EXPLAINED:
 # 1. Prefix:         LR (constant for La Ribera villas)
-# 2. unitNumber:     Two-digit padded identifier (e.g., 01, 02, ..., 12, 14, ..., 21)
+# 2. unitNumber:     Two-digit padded identifier (e.g., 01, 02, ..., 12, 14, ..., 20)
 # 3. floorLevel:     GF (Ground Floor) or FF (First Floor)
 # 4. dimensionMode:  WD (With Dimensions) or WOD (Without Dimensions)
 #
 # ─────────────────────────────────────────────────────────────────────────
-# COMPREHENSIVE FILE LIST SCHEMA (80 Files Expected):
+# COMPREHENSIVE FILE LIST SCHEMA (76 Files Expected):
 # ─────────────────────────────────────────────────────────────────────────
 #
 # Unit 01:
@@ -133,12 +133,6 @@
 #   - LR_20_GF_WOD.jpg
 #   - LR_20_FF_WD.jpg
 #   - LR_20_FF_WOD.jpg
-#
-# Unit 21:
-#   - LR_21_GF_WD.jpg
-#   - LR_21_GF_WOD.jpg
-#   - LR_21_FF_WD.jpg
-#   - LR_21_FF_WOD.jpg
 #
 # Note: Any missing image is automatically covered via the pure SVG 
 #       vector layout helper embedded in App.tsx!
