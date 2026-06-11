@@ -772,7 +772,7 @@ export default function App() {
             <div className="space-y-3">
               {VILLAS.map((villa) => {
                 const isActive = selectedVillaId === villa.id;
-                const unitCount = villa.id === 'la-ermida' ? 17 : 19;
+                const unitCount = villa.id === 'la-ermida' ? 16 : 19;
                 return (
                   <div key={villa.id} className="space-y-3">
                     <button
@@ -802,7 +802,7 @@ export default function App() {
                       <div className="p-4 bg-white/70 rounded-2xl border border-brand-sand/35 shadow-inner animate-fadeIn text-left">
                         <div className="grid grid-cols-5 gap-1.5">
                           {(villa.id === 'la-ermida'
-                            ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18]
+                            ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17]
                             : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20]
                           ).map((num) => {
                             const numStr = String(num).padStart(2, '0');
